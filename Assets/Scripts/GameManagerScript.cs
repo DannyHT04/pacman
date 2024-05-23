@@ -16,13 +16,23 @@ public class GameManagerScript : MonoBehaviour
     public int highScore { get; private set; }
     public int lives { get; private set; }
 
+    public AudioSource wa;
+    public AudioSource ka;
+
+    private int pelleteNumber = 0;
+
     public TextMeshProUGUI scoreTxt;
     public TextMeshProUGUI highScoreTxt;
+    public AudioSource deathSound;
+    public AudioSource eatGhostSound;
+    public AudioSource powerPelletSound;
 
     private void Start()
     {
+      
         NewGame();
     }
+   
     private void Update()
     {
         if (this.lives <= 0 && Input.anyKeyDown)
@@ -30,10 +40,9 @@ public class GameManagerScript : MonoBehaviour
             NewGame();
         }
     }
+
     private void NewGame()
     {
-        Debug.Log(this.score);
-        Debug.Log(this.highScore);
         if(this.score >= this.highScore)
         {
            
@@ -104,6 +113,7 @@ public class GameManagerScript : MonoBehaviour
 
     public void GhostEaten(GhostScript ghost)
     {
+        eatGhostSound.Play();
         int points = ghost.points * this.ghostMultiplier;
         SetScore(this.score + (points));
         scoreTxt.text = this.score.ToString();
@@ -111,6 +121,7 @@ public class GameManagerScript : MonoBehaviour
     }
     public void PacManEaten()
     {
+        deathSound.Play();
         this.pacman.GetComponent<AnimatedSpritesScript>().sprites = deathPac;
         this.pacman.GetComponent<AnimatedSpritesScript>().loop = false;
         this.pacman.GetComponent<MovementScript>().speed = 0f;
@@ -131,6 +142,16 @@ public class GameManagerScript : MonoBehaviour
         pellet.gameObject.SetActive(false);
         SetScore(this.score + pellet.points);
         scoreTxt.text = this.score.ToString();
+
+        if(pelleteNumber == 0)
+        {
+           wa.Play();
+            pelleteNumber = 1;
+        }else{
+
+           ka.Play();
+            pelleteNumber = 0;
+        }
         if (!HasRemainingPellets())
         {
             this.pacman.gameObject.SetActive(false);
@@ -143,9 +164,31 @@ public class GameManagerScript : MonoBehaviour
         {
             this.ghosts[i].frightened.Enable(pellet.duration);
         }
+        StartCoroutine(PlayAudioForDuration(pellet.duration));
         PelletEaten(pellet);
         CancelInvoke();
         Invoke(nameof(ResetGhostMultiplier), pellet.duration);
+    }
+     private IEnumerator PlayAudioForDuration(float duration)
+    {
+        //TODO the audio doesnt line up with the duration of frightened
+        float startTime = Time.time;
+        float endTime = startTime + duration;
+
+        while (Time.time < endTime)
+        {
+            powerPelletSound.Play();
+            yield return new WaitForSeconds(powerPelletSound.clip.length);
+
+            // Check if remaining time is less than the clip length
+            if (Time.time + powerPelletSound.clip.length > endTime)
+            {
+                yield return new WaitForSeconds(endTime - Time.time);
+            }
+        }
+
+        // Ensure the audio stops after the loop
+        powerPelletSound.Stop();
     }
 
     private bool HasRemainingPellets()
